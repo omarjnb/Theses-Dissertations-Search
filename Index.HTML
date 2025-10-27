@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <h1>Theses & Dissertations Search</h1>
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f9f9f9;
+    }
+
+    h2 {
+      color: #004080;
+    }
+
+    input[type="text"] {
+      padding: 0.6rem;
+      width: 60%;
+      font-size: 1rem;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      background-color: #004080;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0066cc;
+    }
+
+    #status {
+      color: green;
+      margin-top: 1rem;
+    }
+
+    .thesis-result {
+      background-color: #ffffff;
+      border-left: 5px solid #004080;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .thesis-title {
+      font-size: 1.25rem;
+      color: #004080;
+      margin-bottom: 0.5rem;
+    }
+
+    .meta-info {
+      color: #444;
+      font-size: 0.95rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .abstract {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    #downloadBtn {
+      display: none;
+      margin: 1rem 0;
+    }
+  </style>
+</head>
+<body>
+
+
+<form id="searchForm" aria-label="Search Form">
+  <input id="query" type="text" placeholder="Search by year, title, author, department…" required />
+  <button type="submit">Search</button>
+</form>
+
+<div id="status">Loading data… please wait.</div>
+
+<!-- PDF download button -->
+<button id="downloadBtn">Download Results as PDF</button>
+
+<!-- Search Results -->
+<div id="results" style="margin-top:1rem;"></div>
+
+<script>
+// === CONFIGURATION ===
+const DRIVE_FILE_IDS = [
+  "1F0z41tYwoXqF6vFsixJ2711k5Pnz-9TgM8VWnM9-4DQ", "1xeEkKsgIV5EbRzSdIeTtBLMxuVB-6Awe0-FchgNdHEg",
+  "1PwY8EdK9R5atC5b2S25AWq495ntp51WsWT9JCj8DkXE", "1B8o7ErGl0sQTdNfBKIxEQL4_Tvd86r4xUwZej_S8FkA",
+  "1ouD3NAlkaTy72_k2nfDwpy8evlFGNd-Ak9Lh0v0Sj_c", "195aiAo1qsTRGeHqxMWAgvJpwDx_3pep6Uprap6hCa4A",
+  "1eb83D7V1QV2fQ7GMn7hnFyPkHt5Mwi4cSD6T3A1LND0", "1c4CxTRthgPlCE_2muWFVC9iiBILksrmd",
+  "1Exz3e9B8WXveLbrxuhUa832ItgXgbhCMU4QJgSTsK3M", "1hY5zhyMHRQCkC2z1SWEfmQ9ONFkszBrScdaS72-yQnM",
+  "1DkLnihe1UhpFz90ZKiDP9nDzelWrP4UXyuYS2oaDuCk", "1yU3bb7T-NpZPJfesNKRXZQzj4gl7CggOVeg7IyB6v90",
+  "14rosSI1CcPURS-vE40TqRt41WaWgMwXqV1Nbg64F50Y", "1LMhxBhAr-pgJi8_kL4KznVsJB3s5Ff7vWywomgCe5hI",
+  "1YjlxxQdMKI2X34Dmf1zSgMFrUzzCitM-uXBq2ar0YR0"
+];
+const SCRIPT_PROXY_URL = "https://script.google.com/macros/s/AKfycbx59Hxpsph8RLWqyxoFMX_Gh2Kj9a0IaocgPsczL7Tc4Gd8l9NJgkOGhRffHkYpPggG/exec";
+
+let theses = [], fuse;
+
+Promise.all(
+  DRIVE_FILE_IDS.map(id =>
+    fetch(`${SCRIPT_PROXY_URL}?id=${id}`)
+      .then(res => res.json())
+      .then(data => splitIntoTheses(data.text))
+      .catch(err => {
+        console.error(`Error loading ${id}`, err);
+        return [];
+      })
+  )
+).then(results => {
+  theses = results.flat();
+  fuse = new Fuse(theses, {
+    keys: ["thesis_title", "abstract", "full_name", "department", "year", "cd"],
+    threshold: 0.3,
+    ignoreLocation: true
+  });
+  document.getElementById("status").textContent = `Loaded ${theses.length} theses.`;
+}).catch(err => {
+  document.getElementById("status").textContent = "Failed to load data.";
+  console.error(err);
+});
+
+// === SEARCH LOGIC ===
+document.getElementById("searchForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (!fuse) {
+    alert("Data is not yet loaded.");
+    return;
+  }
+  const q = document.getElementById("query").value.trim();
+  const hits = q ? fuse.search(q).map(h => h.item) : theses;
+  displayResults(hits);
+  document.getElementById("downloadBtn").style.display = hits.length ? "inline-block" : "none";
+});
+
+// === DISPLAY RESULTS ===
+function displayResults(items) {
+  const container = document.getElementById("results");
+  if (!items.length) {
+    container.innerHTML = "<p>No results found.</p>";
+    return;
+  }
+  container.innerHTML = items.map(t => `
+    <div class="thesis-result">
+      <div class="thesis-title">${t.thesis_title || "(No Title)"}</div>
+      <div class="meta-info">
+        <strong>Author:</strong> ${t.full_name || "–"} |
+        <strong>Year:</strong> ${t.year || "–"} |
+        <strong>Department:</strong> ${t.department || "–"} |
+        <strong>Degree:</strong> ${t.degree || "–"}
+      </div>
+      <div class="abstract">${t.abstract || "No abstract available."}</div>
+    </div>
+  `).join("");
+}
+
+// === PDF GENERATION ===
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  const resultsElement = document.getElementById("results");
+  const opt = {
+    margin:       0.5,
+    filename:     'search-results.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+  };
+  html2pdf().from(resultsElement).set(opt).save();
+});
+
+// === TEXT SPLIT & PARSE ===
+function splitIntoTheses(text) {
+  const blocks = text.split(/University of Baghdad/i).filter(b => b.trim().length > 20);
+  return blocks.map(b => parseOneThesis("University of Baghdad\n" + b));
+}
+
+function parseOneThesis(raw) {
+  const extract = (label, fallback = "") => {
+    const re = new RegExp(label + "\\s*\\n?\\s*(.+)", "i");
+    const match = raw.match(re);
+    return match ? match[1].trim() : fallback;
+  };
+
+  const abstractStart = raw.search(/Abstract/i);
+  const abstract = abstractStart !== -1 ? raw.slice(abstractStart).replace(/Abstract/i, "").trim() : "";
+
+  return {
+    university: "University of Baghdad",
+    college: extract("College Name"),
+    department: extract("Department"),
+    full_name: extract("Full name.*passport"),
+    email: extract("e[- ]?mail"),
+    career: extract("Career"),
+    degree: raw.includes("Board") ? "Board" : extract("Degree"),
+    thesis_title: extract("Thesis Title"),
+    year: extract("Year") || (raw.match(/\b(20|19)\d{2}\b/) || [""])[0],
+    cd: extract("CD"),
+    abstract: abstract,
+    raw_text: raw
+  };
+}
+</script>
+
+</body>
+</html>
