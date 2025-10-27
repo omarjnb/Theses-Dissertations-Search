@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thesis Search</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background-color: white;
+            padding: 20px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        li strong {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Search Theses and Dissertations</h1>
+    <form id="searchForm">
+        <label for="query">Search:</label>
+        <input type="text" id="query" name="query" required>
+        <button type="submit">Search</button>
+    </form>
+    <div id="results"></div>
+
+    <script>
+        const theses = [
+            {
+                title: "Assessment of Fatigue in a Sample of Iraqi Patients with Rheumatoid Arthritis",
+                author: "Mariam AbdelAAli Hamza",
+                year: 2023,
+                abstract: "Most people with rheumatoid arthritis (RA) experience fatigue on most days...",
+                file: "path/to/thesis1.pdf"
+            },
+            {
+                title: "A study of the effect of Gamma Aminobutyric Acid and 1,4,5 Triphosphate Inositol on Insulin Resistance",
+                author: "Ismaeel Sadeq Khashan",
+                year: 2024,
+                abstract: "Different proposed mechanisms have been put forward to understand insulin resistance...",
+                file: "path/to/thesis2.pdf"
+            }
+            // Add more theses as needed
+        ];
+
+        document.getElementById('searchForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const query = document.getElementById('query').value.toLowerCase();
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            const results = theses.filter(thesis => 
+                thesis.title.toLowerCase().includes(query) ||
+                thesis.author.toLowerCase().includes(query) ||
+                thesis.abstract.toLowerCase().includes(query)
+            );
+
+            if (results.length > 0) {
+                let resultsHTML = '<h2>Search Results:</h2><ul>';
+                results.forEach(thesis => {
+                    resultsHTML += `
+                        <li>
+                            <strong>Title:</strong> ${thesis.title}<br>
+                            <strong>Author:</strong> ${thesis.author}<br>
+                            <strong>Year:</strong> ${thesis.year}<br>
+                            <a href="${thesis.file}">Download Thesis</a><br>
+                            <strong>Abstract:</strong> ${thesis.abstract}<br>
+                        </li>
+                    `;
+                });
+                resultsHTML += '</ul>';
+                resultsDiv.innerHTML = resultsHTML;
+            } else {
+                resultsDiv.innerHTML = `No results found for '${query}'.`;
+            }
+        });
+    </script>
+</body>
+</html>
